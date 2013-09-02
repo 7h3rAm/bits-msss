@@ -33,15 +33,15 @@ typedef struct job {						/* struct to hold background job info */
 static jobInfo *jobslist = NULL;			/* global linked list of all running background jobs */
 static unsigned int jobscount = 0;			/* global static counter for currently active number of jobs */
 
-void do_exit(int);							/* builtin "exit" command handler */
-int do_info(void);							/* builtin "info" command handler */
-int do_jobs(void);							/* builtin "jobs" command handler */
-int do_cd(commandInfo *);					/* builtin "cd" command handler */
+void doExit(int);							/* builtin "exit" command handler */
+int doInfo(void);							/* builtin "info" command handler */
+int doJobs(void);							/* builtin "jobs" command handler */
+int doCd(commandInfo *);					/* builtin "cd" command handler */
 int readCommand(char *);					/* read a command from stdin and null terminate it */
 int parseCommand(char *, commandInfo *);	/* parse command and populate command info struct */
 int showCommand(commandInfo *);				/* show parsed command and its args list (only if DEBUG is on) */
 int checkCommand(commandInfo *cinfo);		/* check if the parsed command is available or not */
-pid_t do_execvp(commandInfo *);				/* fork and execvp parsed command (populate jobs struct if reqd.) */
+pid_t doExecvp(commandInfo *);				/* fork and execvp parsed command (populate jobs struct if reqd.) */
 void handleInterrupt(int);					/* interrupt handler for registered signals */
 
 int main(int cliargsc, char **cliargsv) {
@@ -91,23 +91,23 @@ int main(int cliargsc, char **cliargsv) {
 		signal(SIGCHLD, handleInterrupt);
 
 		if (!strcmp(cinfo.cliargs[0], "exit")) { /* call builtin hanlder for exit */
-			if (DEBUG) { printf("[D] main: calling exit handler: do_exit\n"); }
-			do_exit(EXIT_SUCCESS);
+			if (DEBUG) { printf("[D] main: calling exit handler: doExit\n"); }
+			doExit(EXIT_SUCCESS);
 		} else if (!strcmp(cinfo.cliargs[0], "info")) { /* call builtin handler for info and show return status */
-			if (DEBUG) { printf("[D] main: calling info handler: do_info\n"); }
-			rc = do_info();
-			if (DEBUG) { printf("[D] main: returned from info handler: do_info (RC: %d)\n", rc); }
+			if (DEBUG) { printf("[D] main: calling info handler: doInfo\n"); }
+			rc = doInfo();
+			if (DEBUG) { printf("[D] main: returned from info handler: doInfo (RC: %d)\n", rc); }
 		} else if (!strcmp(cinfo.cliargs[0], "jobs")) {	/* call builtin handler for jobs and show return status */
-			if (DEBUG) { printf("[D] main: calling jobs handler: do_jobs\n"); }
-			rc = do_jobs();
-			if (DEBUG) { printf("[D] main: returned from jobs handler: do_jobs (RC: %d)\n", rc); }
+			if (DEBUG) { printf("[D] main: calling jobs handler: doJobs\n"); }
+			rc = doJobs();
+			if (DEBUG) { printf("[D] main: returned from jobs handler: doJobs (RC: %d)\n", rc); }
 		} else if (!strcmp(cinfo.cliargs[0], "cd")) { /* call builtin handler for cd and show return status */
-			if (DEBUG) { printf("[D] main: calling cd handler: do_cd\n"); }
-			rc = do_cd(&cinfo);
-			if (DEBUG) { printf("[D] main: returned from cd handler: do_cd (RC: %d)\n", rc); }
+			if (DEBUG) { printf("[D] main: calling cd handler: doCd\n"); }
+			rc = doCd(&cinfo);
+			if (DEBUG) { printf("[D] main: returned from cd handler: doCd (RC: %d)\n", rc); }
 		} else {							/* if its a non builtin command */
 			if (!checkCommand(&cinfo)) {	/* check if its a valid command (not a shell builtin) */
-				pid_t pid = do_execvp(&cinfo);/* fork/execvp this command */
+				pid_t pid = doExecvp(&cinfo);/* fork/execvp this command */
 
 				if (cinfo.background == FALSE) { /* if command is not to be executed in background */
 					pid_t done_pid = waitpid(pid, NULL, 0); /* wait for the child to complete execution */
@@ -129,18 +129,18 @@ int main(int cliargsc, char **cliargsv) {
 	return 0;
 }
 
-void do_exit(int rc) {						/* builtin "exit" command handler */
+void doExit(int rc) {						/* builtin "exit" command handler */
 	printf("\n");
 
 	if (jobscount == 0) {					/* if there are no background jobs */
 		exit(rc);							/* exit cleanly */
 	} else {								/* else wait for background jobs to complete */
-		printf("[+] do_exit: waiting for %d jobs to complete", jobscount);
-		do_jobs();							/* show a listing of currently active background jobs */
+		printf("[+] doExit: waiting for %d jobs to complete", jobscount);
+		doJobs();							/* show a listing of currently active background jobs */
 	}
 }
 
-int do_info(void) {							/* builtin "info" command handler */
+int doInfo(void) {							/* builtin "info" command handler */
 	pid_t pid = getpid();					/* read pid of shell */
 	pid_t ppid = getppid();					/* read pid of parent */
 	uid_t ruid = getuid();					/* get user id of currently loggedin user */
@@ -157,7 +157,7 @@ int do_info(void) {							/* builtin "info" command handler */
 	return 0;
 }
 
-int do_jobs(void) {							/* builtin "jobs" command handler */
+int doJobs(void) {							/* builtin "jobs" command handler */
 	printf("\n");
 
 	jobInfo *job = jobslist;				/* pointer to the start of the global jobs linked list */
@@ -177,12 +177,12 @@ int do_jobs(void) {							/* builtin "jobs" command handler */
 	return 0;
 }
 
-int do_cd(commandInfo *cinfo) {				/* builtin "cd" handler */
+int doCd(commandInfo *cinfo) {				/* builtin "cd" handler */
 	if (cinfo->argscount == 1) {			/* if no argument was passed to cd */
 		chdir(getenv("HOME"));				/* change cwd to loggedin user's HOME */
 		return EXIT_SUCCESS;
 	} else if (chdir(cinfo->cliargs[1]) == -1) { /* else change cwd to requested directory */
-		perror("[-] do_cd");				/* if requested directory is not available show error message */
+		perror("[-] doCd");				/* if requested directory is not available show error message */
 		return EXIT_FAILURE;
 	}
 
@@ -246,7 +246,7 @@ int checkCommand(commandInfo *cinfo) {		/* check if the command is available or 
 	return EXIT_SUCCESS;
 }
 
-pid_t do_execvp(commandInfo *cinfo) {		/* fork and execvp the command */
+pid_t doExecvp(commandInfo *cinfo) {		/* fork and execvp the command */
 	pid_t pid = fork();						/* fork the parent */
 
 	if (cinfo->background == TRUE) {		/* if this is a background command */
@@ -268,14 +268,14 @@ pid_t do_execvp(commandInfo *cinfo) {		/* fork and execvp the command */
 	}
 
 	if (pid < 0) {							/* if fork returned a negative return id */
-		perror("[!] do_execvp: fork failed!");/* show error message and exit */
+		perror("[!] doExecvp: fork failed!");/* show error message and exit */
 		return EXIT_FAILURE;
 	} else if (pid == 0) {					/* if fork passed and we're in parent process */
 		execvp(cinfo->cliargs[0], cinfo->cliargs); /* overwrite the child with requested command */
-		perror("[-] do_execvp");			/* if execvp failed, show error and exit */
+		perror("[-] doExecvp");			/* if execvp failed, show error and exit */
 		exit(EXIT_FAILURE);
 	} else {								/* if fork passed and we're in child process */
-		printf("[+] do_execvp: child process (pid: %d)\n", pid); /* show child pid and continue executing the child */
+		printf("[+] doExecvp: child process (pid: %d)\n", pid); /* show child pid and continue executing the child */
 		printf("\n");
 	}
 
@@ -316,52 +316,52 @@ void handleInterrupt(int sig) {				/* interrup handlet for registered signals */
 
 		case SIGABRT:						/* call builtin "exit" handler */
 			printf("\n[+] handleInterrupt: recieved SIGABRT! exiting.\n");
-			do_exit(EXIT_SUCCESS);
+			doExit(EXIT_SUCCESS);
 			break;
 
 		case SIGHUP:						/* call builtin "exit" handler */
 			printf("\n[+] handleInterrupt: recieved SIGHUP! exiting.\n");
-			do_exit(EXIT_SUCCESS);
+			doExit(EXIT_SUCCESS);
 			break;
 
 		case SIGILL:						/* call builtin "exit" handler */
 			printf("\n[+] handleInterrupt: recieved SIGILL! exiting.\n");
-			do_exit(EXIT_SUCCESS);
+			doExit(EXIT_SUCCESS);
 			break;
 
 		case SIGINT:						/* call builtin "exit" handler */
 			printf("\n[+] handleInterrupt: recieved SIGINT! exiting.\n");
-			do_exit(EXIT_SUCCESS);
+			doExit(EXIT_SUCCESS);
 			break;
 
 		case SIGKILL:						/* call builtin "exit" handler */
 			printf("\n[+] handleInterrupt: recieved SIGKILL! exiting.\n");
-			do_exit(EXIT_SUCCESS);
+			doExit(EXIT_SUCCESS);
 			break;
 
 		case SIGQUIT:						/* call builtin "exit" handler */
 			printf("\n[+] handleInterrupt: recieved SIGQUIT! exiting.\n");
-			do_exit(EXIT_SUCCESS);
+			doExit(EXIT_SUCCESS);
 			break;
 
 		case SIGSEGV:						/* call builtin "exit" handler */
 			printf("\n[+] handleInterrupt: recieved SIGSEGV! exiting.\n");
-			do_exit(EXIT_SUCCESS);
+			doExit(EXIT_SUCCESS);
 			break;
 
 		case SIGTERM:						/* call builtin "exit" handler */
 			printf("\n[+] handleInterrupt: recieved SIGTERM! exiting.\n");
-			do_exit(EXIT_SUCCESS);
+			doExit(EXIT_SUCCESS);
 			break;
 
 		case SIGSTOP:						/* call builtin "exit" handler */
 			printf("\n[+] handleInterrupt: recieved SIGSTOP! exiting.\n");
-			do_exit(EXIT_SUCCESS);
+			doExit(EXIT_SUCCESS);
 			break;
 
 		case SIGTSTP:						/* call builtin "exit" handler */
 			printf("\n[+] handleInterrupt: recieved SIGTSTP! exiting.\n");
-			do_exit(EXIT_SUCCESS);
+			doExit(EXIT_SUCCESS);
 			break;
 
 		default:
