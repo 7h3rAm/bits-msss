@@ -20,22 +20,22 @@ pid_t pid4, pid5, pid6, pid7;				/* stores pid from fork */
 int buflen;									/* length of input string */
 char infdbuf[MAXINPUTBUFSIZE];				/* buffer to read raw string input */
 
-key_t key;
-int mask, msgid;
+key_t key;									/* stores a key for msgsnd/rcv (uid in this example) */
+int mask, msgid;							/* store message queue file permissions mask and identifier */
 
-struct msgbuf {
+struct msgbuf {								/* message buffer for IPC */
 	long msgtype;
 	char message[MAXINPUTBUFSIZE];
 };
 struct msgbuf mbuf;
 
 
-int doP3(char []);
+int doP3(char []);							/* function that forks child processes and facilitates IPC ia message queues */
 
 
 int main(int argc, char *argv[]) {
-	char *prompt = "(commands) ", *banner = "ISZC462 - Network Programming | EC1 - P2\n"
-											"Program to demo pipes based IPC mechanism\n"
+	char *prompt = "(commands) ", *banner = "ISZC462 - Network Programming | EC1 - P3\n"
+											"Program to demo message queue based IPC mechanism\n"
 											"Ankur Tyagi (2012HZ13084)\n";
 
 	printf("\n%s\n", banner);
@@ -46,23 +46,23 @@ int main(int argc, char *argv[]) {
 		/* read user command into input buffer; exit if read fails */
 		if (!fgets(infdbuf, MAXINPUTBUFSIZE, stdin)) { return EXIT_FAILURE; }
 
-		buflen = strlen(infdbuf);
+		buflen = strlen(infdbuf);			/* get length of the input string */
 
 		if (!strcmp(infdbuf, "") || !strcmp(infdbuf, "\n") || !strcmp(infdbuf, " ") || buflen <= 0) {
-			continue;
+			continue;						/* loop untill we receive some input */
 		} else {
-			if (infdbuf[buflen-1] == '\n') {
+			if (infdbuf[buflen-1] == '\n') { /* remove newline form received string */
 				infdbuf[buflen-1] = '\0';
 			}
-			if (!strcmp(infdbuf, "exit")) {
+			if (!strcmp(infdbuf, "exit")) {	/* exit if requested */
 				printf("c1: received exit!\n");
 				printf("\n");
 				exit(EXIT_SUCCESS);
 			} else {
-				doP3(infdbuf);
+				doP3(infdbuf);				/* fork/communicate with child processes */
 
 				int temp;
-				for(temp=0; temp<6; ++temp) { wait(NULL); }
+				for(temp=0; temp<6; ++temp) { wait(NULL); } /* cheap trick to wait untill all child processes complete execution */
 
 				return EXIT_SUCCESS;
 			}
@@ -76,25 +76,25 @@ int main(int argc, char *argv[]) {
 int doP3(char infdbuf[]) {
 	printf("\n");
 
-	pid1 = getpid();
+	pid1 = getpid();						/* get pid of parent process, c1 */	
 	printf("c1 (#%d): received message \'%s\'\n", pid1, infdbuf);
 	char *str = infdbuf;
-	for(; *str; ++str) { *str = tolower(*str); }
+	for(; *str; ++str) { *str = tolower(*str); } /* perform transform */
 	printf("c1 (#%d): transform: message -> tolower -> \'%s\'\n", pid1, infdbuf);
 
-	key = getuid();
-	mask = 0666;
+	key = getuid();							/* instantiate key with current uid */
+	mask = 0666;							/* set octal mask for message queue */
 
-	mbuf.msgtype = 1;
+	mbuf.msgtype = 1;						/* message type identifier to be shared with child processes */
 	strcpy(mbuf.message, infdbuf);
 	size_t msize = strlen(mbuf.message); 
 
-	msgid = msgget(key, mask | IPC_CREAT);
+	msgid = msgget(key, mask | IPC_CREAT);	/* create a new message queue with key and mask */
 	if (DEBUG) { printf("c1 (#%d): key: %d | mask: %o | msgid = %d | msgtype: %ld | msize: %d\n", pid1, key, mask, msgid, mbuf.msgtype, msize); }
 
 	if (msgid != -1) {
 		if (DEBUG) { printf("c1 (#%d): adding message \'%s\' of len %dB to message queue: %d\n", pid1, mbuf.message, msize, msgid); }
-		int rv = msgsnd(msgid, &mbuf, sizeof(mbuf) - sizeof(long), 0);
+		int rv = msgsnd(msgid, &mbuf, sizeof(mbuf) - sizeof(long), 0); /* add c1 transformed string queue */
 		if (rv == -1) {
 			if (DEBUG) { printf("c1 (#%d): msgsnd failed!\n", pid1); }
 			perror("msgsnd");
